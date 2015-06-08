@@ -7,19 +7,156 @@ output:
 
 
 ## Loading and preprocessing the data
+*Setting the Working Directory
 
+```{r}
+setwd("C:/Users/Melanie/Desktop/R Code Class/Reproducible Research 1/RepData_PeerAssessment1")
+```
 
+*Reading in the Data Set
+```{r}
+Data <- read.csv(file="C:\Users\Melanie\Desktop\R Code Class\Reproducible Research 1\RepData_PeerAssessment1\activity.zip\activity.csv"
+```
+
+*Converting the Date Field
+```{r}
+Data$date <- as.Date(Data$date)
+```
+
+*Load reshape2 Library
+```{r}
+library(reshape2)
+```
+
+*Prepare Data for use in the rest of the Assignment
+```{r}
+MeltDate <- melt(Data, id.vars="date", measure.vars="steps", na.rm=FALSE)
+CastDate <- dcast(MeltDate, date ~ variable, sum)
+```
 
 ## What is mean total number of steps taken per day?
 
+*Show the Total # of Steps Taken Each Day
+```{r}
+CastDate$steps
+```
+
+*Hitogram of the # of steps taken each day
+```{r}
+plot(CastDate$date, CastDate$steps, type="h", main="Histogram of Daily Steps", xlab="Date", ylab="Steps per Day", col="blue", lwd=8)
+abline(h=mean(CastDate$steps, na.rm=TRUE), col="red", lwd=2)
+```
+
+*Calculate the Mean of the steps taken each day
+```{r}
+paste("The Mean of the total # of steps taken each day is:", Mean(CastDate$steps, na.rm=TRUE))
+```
+
+*Calculate the Median of the steps taken each day
+
+```{r}
+paste("The Median of the total # of steps taken each day is:", Median(CastDate$steps, na.rm=TRUE))")
+```
 
 
 ## What is the average daily activity pattern?
+* Prep the Data to make the plot
+```{r}
+MeltInt <- melt(Data, id.vars="interval", measure.vars="steps", na.rm=TRUE)
+CastInt <- dcast(MeltInt, interval ~ variable, mean)
+```
 
+*Create a Plot @ 5 minute intervals
+```{r}
+plot(CastInt$interval, CastInt$steps, type="l", main="Frequency of Steps Taken at Each Interval", xlab="Interval ID", ylab="Steps", col="orange", lwd=2)
+abline(h=mean(CastInt$steps, na.rm=TRUE), col="red", lwd=2)
+```
+
+*Identify the intervial with the Max Value
+```{r}
+paste("Interval with max value =", CastInt$interval[which(CastInt$steps == max(CastInt$steps))])
+```
 
 
 ## Imputing missing values
+* # of Na's Calculated
+```{r}
+paste("The number of NAs in the data set is", sum(is.na(Data$steps)))
+```
 
+*Replace the Nas with the integer mean(CastInt Value we created earlier). To do this I created a data set containing the integer means and then using a index of NA values, I reassigned each NA values with the corresponding Integer Mean Value.
+```{r}
+AssignIntData = merge(Data, CastInt, by="interval", suffixes=c(".act", ".spi"))
+NADataIndex = which(is.na(Data$steps))
+Data[NADataIndex,"steps"] = AssignIntData[NADataIndex,"steps.spi"]
+```
 
+*redo earlier data minipulation to print a new histogram
+```{r}
+MeltDateNoNA <- melt(Data, id.vars="date", measure.vars="steps", na.rm=FALSE)
+CastDateNoNA <- dcast(MeltDateNoNA, date ~ variable, sum)
+```
+
+*reprint Histogram
+```{r}
+plot(CastDateNoNA$date, CastDateNoNA$steps, type="h", main="Histogram of Daily Steps (Updated NA Values)", xlab="Date", ylab="Steps", col="gray", lwd=8)
+abline(h=mean(CastDateNoNA$steps), col="red", lwd=2)
+```
+
+*Re-Calculate the Mean of the steps taken each day
+```{r}
+paste("The updated Mean of the total # of steps taken each day is:", Mean(CastDate$steps, na.rm=TRUE))
+```
+
+*Re-Calculate the Median of the steps taken each day
+
+```{r}
+paste("The upated Median of the total # of steps taken each day is:", Median(CastDate$steps, na.rm=TRUE))")
+```
+
+*Original Data Set (NA values left as is) - Mean daily steps = 10,766.19 - Median daily steps = 10,765
+
+*New Data Sets (NAs imputed with mean value for that interval) - Mean daily steps = 10,890 - Median daily steps = 11,015
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+*Tag Data as weekday or weekend
+```{r}
+for (i in 1:nrow(Data)) {
+    if (weekdays(Data$date[i]) == "Saturday" | weekdays(Data$date[i]) == "Sunday") {
+        Data$dayOfWeek[i] = "weekend"
+    } else {
+        Data$dayOfWeek[i] = "weekday"
+    }
+}
+```
+
+*subset the Data
+```{r}
+DataWeekday <- subset(Data, dayOfWeek=="weekday")
+DataWeekend <- subset(Data, dayOfWeek=="weekend")
+```
+
+*Prep Data for Plotting
+```{r}
+MeltWeekday <- melt(DataWeekday, id.vars="interval", measure.vars="steps")
+MeltWeekend <- melt(DataWeekend, id.vars="interval", measure.vars="steps")
+CastWeekday <- dcast(MeltWeekday, interval ~ variable, mean)
+CastWeekend <- dcast(MeltWeekend, interval ~ variable, mean)
+```
+
+*Load needed Plot Libraries
+```{r}
+library(ggplot2)
+library(gridExtra)
+```
+
+*Create the plots
+```{r}
+WeekdayPlot <- qplot(CastWeekday$interval, CastWeekday$steps, geom="line", data=CastWeekday, type="bar", main="Steps by Interval - Weekday", xlab="Interval ID", ylab="Number of Steps")
+WeekendPlot <- qplot(CastWeekend$interval, CastWeekend$steps, geom="line", data=CastWeekend, type="bar", main="Steps by Interval - Weekend", xlab="Interval ID", ylab="Number of Steps")
+```
+*Print the plots
+```{r}
+grid.arrange(WeekdayPlot, WeekendPlot, nrow=2)
+```
